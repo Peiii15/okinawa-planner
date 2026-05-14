@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+
+    <!-- 瀏覽器分頁的小圖示 (Favicon) -->
+    <link rel="icon" href="icon.png" type="image/png">
+
+    <!-- iOS (iPhone/iPad) 加入主畫面後的圖示 -->
+    <link rel="apple-touch-icon" href="icon.png">
+
+    <!-- Android / Chrome 加入主畫面的圖示 -->
+    <meta name="mobile-web-app-capable" content="yes">
+
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>生日禮物要買什麼 - 沖繩5日</title>
+    
+    <!-- 引入 Google Fonts: 源雲明體 (Noto Serif TC) 與 源石黑體 (Noto Sans TC) 的替代字體 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@500;700&display=swap" rel="stylesheet">
+    
+    <!-- 引入 FontAwesome 圖示 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tailwind 設定：自定義顏色、字體與陰影 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2C3E35', // 深綠色 (配色參考)
+                        secondary: '#E0E5D5', // 柔和淺綠 (陰影色)
+                        accent: '#D9B473', // 點綴金/褐色
+                        dark: '#1C1C1E', // 深色導航列
+                        background: '#F7F8F6', // 頁面底色
+                    },
+                    fontFamily: {
+                        sans: ['"Noto Sans TC"', 'sans-serif'],
+                        serif: ['"Noto Serif TC"', 'serif'],
+                    },
+                    boxShadow: {
+                        'soft': '4px 4px 0px #E0E5D5',
+                        'soft-dark': '4px 4px 0px #2C3E35',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* 隱藏捲軸但保留捲動功能 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        /* 點擊回饋特效 */
+        .btn-active:active {
+            transform: scale(0.96);
+            transition: transform 0.1s;
+        }
+
+        /* 確保字體平滑 */
+        body {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+    </style>
+</head>
+<body class="bg-background text-gray-800 font-sans overflow-hidden">
+    
+    <div id="app" class="flex h-screen w-full" v-cloak>
+        
+        <!-- 左側導航列 (Bottom Navigation 移至左側) -->
+        <nav class="w-20 md:w-24 bg-dark h-full flex flex-col items-center py-6 shadow-2xl z-20 flex-shrink-0">
+            <!-- 標題/倒數 -->
+            <div class="mb-8 flex flex-col items-center px-1">
+                <div class="text-accent text-[11px] font-bold mb-3 font-serif text-center leading-relaxed tracking-widest">
+                    生日禮物<br>要買什麼
+                </div>
+                <div class="text-white text-xs font-bold tracking-wider">沖繩5日</div>
+                
+                <div class="mt-5 bg-white/10 rounded-full w-12 h-12 flex flex-col items-center justify-center border border-white/20 shadow-inner">
+                    <span class="text-[10px] text-white/70">出發</span>
+                    <span class="text-accent font-bold text-sm leading-tight">{{ daysLeft }}天</span>
+                </div>
+            </div>
+
+            <!-- 導航 Tabs -->
+            <div class="flex flex-col gap-6 w-full items-center overflow-y-auto no-scrollbar flex-1 pb-6">
+                
+                <button @click="currentTab = 'schedule'" :class="['flex flex-col items-center w-full relative transition-colors', currentTab === 'schedule' ? 'text-accent' : 'text-gray-500']">
+                    <div v-if="currentTab === 'schedule'" class="absolute left-0 top-0 h-full w-1 bg-accent rounded-r-md"></div>
+                    <i class="fa-solid fa-plane-departure text-xl mb-1"></i>
+                    <span class="text-[10px]">行程</span>
+                </button>
+                
+                <!-- 行程子選單 (Days) -->
+                <div v-show="currentTab === 'schedule'" class="flex flex-col gap-4 w-full items-center my-2">
+                    <button v-for="day in itinerary" :key="day.id" @click="activeDay = day.id"
+                            :class="['flex flex-col items-center p-2 rounded-xl transition-all', activeDay === day.id ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300']">
+                        <span class="text-xs font-bold">Day {{ day.id }}</span>
+                        <span class="text-[10px]">{{ day.dateShort }}</span>
+                    </button>
+                </div>
+
+                <button @click="currentTab = 'bookings'" :class="['flex flex-col items-center w-full relative transition-colors mt-2', currentTab === 'bookings' ? 'text-accent' : 'text-gray-500']">
+                    <div v-if="currentTab === 'bookings'" class="absolute left-0 top-0 h-full w-1 bg-accent rounded-r-md"></div>
+                    <i class="fa-solid fa-ticket text-xl mb-1"></i>
+                    <span class="text-[10px]">預訂</span>
+                </button>
+
+                <button @click="currentTab = 'expense'" :class="['flex flex-col items-center w-full relative transition-colors mt-2', currentTab === 'expense' ? 'text-accent' : 'text-gray-500']">
+                    <div v-if="currentTab === 'expense'" class="absolute left-0 top-0 h-full w-1 bg-accent rounded-r-md"></div>
+                    <i class="fa-solid fa-wallet text-xl mb-1"></i>
+                    <span class="text-[10px]">記帳</span>
+                </button>
+
+                <button @click="currentTab = 'checklist'" :class="['flex flex-col items-center w-full relative transition-colors mt-2', currentTab === 'checklist' ? 'text-accent' : 'text-gray-500']">
+                    <div v-if="currentTab === 'checklist'" class="absolute left-0 top-0 h-full w-1 bg-accent rounded-r-md"></div>
+                    <i class="fa-solid fa-list-check text-xl mb-1"></i>
+                    <span class="text-[10px]">攜帶物品</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- 右側主要內容區 (加入 ref 與 scroll 監聽) -->
+        <main ref="mainContent" @scroll="handleScroll" class="flex-1 h-full overflow-y-auto bg-background relative scroll-smooth p-4 md:p-8 w-full max-w-2xl mx-auto">
+            
+            <!-- ====== 行程 (Schedule) ====== -->
+            <div v-if="currentTab === 'schedule'" class="pb-20">
+                <div v-for="day in itinerary" :key="day.id" v-show="activeDay === day.id" class="animate-fade-in">
+                    
+                    <!-- 標題區 -->
+                    <div class="mb-6">
+                        <div class="bg-[#F2D79E] text-primary text-xs font-bold px-3 py-1 rounded-full inline-block mb-3 shadow-sm border border-[#E5C170]">
+                            Day {{ day.id }} · {{ day.date }}
+                        </div>
+                        <h1 class="text-3xl md:text-4xl font-serif font-bold text-gray-900 mb-2 tracking-wide">{{ day.title }}</h1>
+                        <p class="text-gray-600 text-sm leading-relaxed mb-4">{{ day.desc }}</p>
+                        
+                        <!-- 標籤 -->
+                        <div class="flex flex-wrap gap-2">
+                            <span v-for="tag in day.tags" :key="tag" class="bg-white border border-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1">
+                                <i class="fa-solid fa-thumbs-up text-accent"></i> {{ tag }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- 今日代辦事項 TODO -->
+                    <div class="bg-white rounded-2xl p-5 mb-6 shadow-soft border-2 border-gray-100 relative">
+                        <div class="flex items-center gap-2 mb-3">
+                            <i class="fa-solid fa-pen-to-square text-accent"></i>
+                            <div class="text-md font-bold text-gray-800">今日代辦事項 / 備註</div>
+                        </div>
+                        <textarea v-model="day.todo" placeholder="點擊此處輸入今天的代辦事項..." rows="2" class="w-full text-sm p-3 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary focus:border-primary outline-none bg-gray-50 resize-none"></textarea>
+                    </div>
+
+                    <!-- 導遊小撇步 -->
+                    <div v-if="day.tip" class="bg-primary text-white rounded-2xl p-5 mb-8 shadow-soft-dark border border-primary relative overflow-hidden">
+                        <div class="absolute -right-4 -top-4 opacity-10 text-6xl">
+                            <i class="fa-solid fa-lightbulb"></i>
+                        </div>
+                        <h3 class="font-bold text-accent mb-2 flex items-center gap-2 font-serif text-lg">
+                            <i class="fa-solid fa-lightbulb"></i> 導遊小撇步：
+                        </h3>
+                        <p class="text-sm leading-relaxed opacity-90">{{ day.tip }}</p>
+                    </div>
+
+                    <!-- 未來 5 日天氣預報卡片 -->
+                    <div class="bg-white rounded-2xl p-5 mb-8 shadow-soft border-2 border-gray-100">
+                        <div class="flex items-center gap-2 mb-4">
+                            <i class="fa-solid fa-cloud-sun text-accent text-xl"></i>
+                            <div class="text-lg font-serif font-bold text-gray-800">沖繩未來5日天氣</div>
+                        </div>
+                        <div class="flex justify-between gap-2">
+                            <div v-for="w in weatherForecast" :key="w.day" class="text-center bg-gray-50 py-3 rounded-xl border border-gray-100 flex-1">
+                                <div class="text-[10px] text-gray-500 mb-2">Day {{ w.day }}</div>
+                                <i :class="w.icon" class="text-gray-600 text-xl mb-2"></i>
+                                <div class="text-xs font-bold">{{ w.temp }}°</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 時間軸 -->
+                    <div class="relative pl-4 border-l-2 border-dashed border-gray-300 ml-4 space-y-8">
+                        
+                        <div v-for="(event, index) in day.events" :key="index" class="relative">
+                            <!-- 時間軸點 -->
+                            <div class="absolute -left-[25px] top-1 w-4 h-4 rounded-full border-4 border-background z-10" :class="getEventColor(event.type)"></div>
+                            
+                            <!-- 時間 -->
+                            <div class="text-sm font-bold text-gray-800 mb-1 flex items-center gap-2">
+                                {{ event.time }} 
+                                <span class="text-xs px-2 py-0.5 rounded-md font-normal" :class="getEventBadge(event.type)">
+                                    {{ event.typeText }}
+                                </span>
+                            </div>
+                            
+                            <!-- 地點/事件名稱 -->
+                            <h4 class="text-lg font-serif font-bold text-gray-900 mb-2">{{ event.title }}</h4>
+                            
+                            <!-- 備註說明 -->
+                            <p v-if="event.note" class="text-gray-500 text-sm mb-3">{{ event.note }}</p>
+                            
+                            <!-- 按鈕區 -->
+                            <div class="flex flex-wrap gap-2">
+                                <a v-if="event.map" :href="event.map" target="_blank" class="btn-active bg-[#E8F0FE] text-[#1A73E8] text-xs font-bold px-4 py-2 rounded-full flex items-center gap-1 border border-[#D2E3FC]">
+                                    <i class="fa-solid fa-location-arrow"></i> 導航
+                                </a>
+                                <a v-if="event.website" :href="event.websiteUrl" target="_blank" class="btn-active bg-[#E6F4EA] text-[#137333] text-xs font-bold px-4 py-2 rounded-full flex items-center gap-1 border border-[#CEEAD6]">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i> 官網
+                                </a>
+                                <button v-if="event.voucher" class="btn-active bg-[#F3E8FD] text-[#681DA8] text-xs font-bold px-4 py-2 rounded-full flex items-center gap-1 border border-[#E9D2FA]">
+                                    <i class="fa-solid fa-ticket"></i> 憑證
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- ====== 預訂 (Bookings) ====== -->
+            <div v-else-if="currentTab === 'bookings'" class="pb-20 animate-fade-in">
+                <h1 class="text-3xl font-serif font-bold text-gray-900 mb-6 border-b-2 border-primary pb-2 inline-block">預訂資訊</h1>
+                
+                <!-- 機票卡片 (登機證樣式) -->
+                <div class="bg-white rounded-2xl mb-6 shadow-soft border-2 border-gray-100 overflow-hidden">
+                    <div class="bg-primary p-4 text-white flex justify-between items-center">
+                        <div class="font-bold text-lg"><i class="fa-solid fa-plane"></i> 星宇航空</div>
+                        <div class="text-sm bg-white/20 px-2 py-1 rounded">5/16 (六) 去程</div>
+                    </div>
+                    <div class="p-5 flex justify-between items-center border-b border-dashed border-gray-300">
+                        <div class="text-center">
+                            <div class="text-3xl font-bold font-serif">TPE</div>
+                            <div class="text-sm text-gray-500">台北桃園</div>
+                            <div class="text-lg font-bold mt-1">12:00</div>
+                        </div>
+                        <div class="flex flex-col items-center px-4 text-gray-400">
+                            <i class="fa-solid fa-plane text-primary mb-1"></i>
+                            <div class="text-xs border-b border-gray-300 w-16 text-center pb-1">JX870</div>
+                            <div class="text-xs mt-1">1h 40m</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-3xl font-bold font-serif">OKA</div>
+                            <div class="text-sm text-gray-500">沖繩那霸</div>
+                            <div class="text-lg font-bold mt-1">14:40</div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-4 flex justify-between text-sm">
+                        <div>
+                            <div class="text-gray-500">航廈</div>
+                            <div class="font-bold">第一航廈 (櫃台6)</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-500">行李</div>
+                            <div class="font-bold">托運23kg，手提7kg，嬰兒5kg</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl mb-6 shadow-soft border-2 border-gray-100 overflow-hidden">
+                    <div class="bg-primary p-4 text-white flex justify-between items-center">
+                        <div class="font-bold text-lg"><i class="fa-solid fa-plane"></i> 星宇航空</div>
+                        <div class="text-sm bg-white/20 px-2 py-1 rounded">5/20 (三) 回程</div>
+                    </div>
+                    <div class="p-5 flex justify-between items-center border-b border-dashed border-gray-300">
+                        <div class="text-center">
+                            <div class="text-3xl font-bold font-serif">OKA</div>
+                            <div class="text-sm text-gray-500">沖繩那霸</div>
+                            <div class="text-lg font-bold mt-1">15:50</div>
+                        </div>
+                        <div class="flex flex-col items-center px-4 text-gray-400">
+                            <i class="fa-solid fa-plane text-primary mb-1"></i>
+                            <div class="text-xs border-b border-gray-300 w-16 text-center pb-1">JX871</div>
+                            <div class="text-xs mt-1">1h 35m</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-3xl font-bold font-serif">TPE</div>
+                            <div class="text-sm text-gray-500">台北桃園</div>
+                            <div class="text-lg font-bold mt-1">16:25</div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-4 flex justify-between text-sm">
+                        <div>
+                            <div class="text-gray-500">航廈</div>
+                            <div class="font-bold">OKA國際航廈</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-500">行李</div>
+                            <div class="font-bold">托運23kg，手提7kg，嬰兒5kg</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 住宿卡片 -->
+                <div class="bg-white rounded-2xl mb-6 shadow-soft border-2 border-gray-100 p-5">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <div class="text-xs font-bold text-primary bg-secondary px-2 py-1 rounded inline-block mb-2">住宿 Day 1 - 3</div>
+                            <h3 class="text-xl font-bold font-serif text-gray-900 mb-2">格蘭迪奧索沖繩別墅恩納2</h3>
+                            <div class="text-sm text-gray-600 mt-2 flex items-center gap-2">
+                                <i class="fa-solid fa-phone text-accent w-4 text-center"></i> 
+                                <span>+81-50-3138-6036</span>
+                            </div>
+                            <div class="text-sm text-gray-600 mt-2 flex items-start gap-2">
+                                <i class="fa-solid fa-bell-concierge mt-1 text-accent w-4 text-center"></i> 
+                                <span>停車場、共用廚房、烘衣機、客房 Wi-Fi</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-xl flex justify-between text-sm mt-4 border border-gray-100">
+                        <div class="text-center flex-1 border-r border-gray-200">
+                            <div class="text-gray-500">Check-in</div>
+                            <div class="font-bold">5/16 16:00</div>
+                        </div>
+                        <div class="text-center flex-1">
+                            <div class="text-gray-500">Check-out</div>
+                            <div class="font-bold">5/18 10:00</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl mb-6 shadow-soft border-2 border-gray-100 p-5">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <div class="text-xs font-bold text-primary bg-secondary px-2 py-1 rounded inline-block mb-2">住宿 Day 3 - 5</div>
+                            <h3 class="text-xl font-bold font-serif text-gray-900 mb-2">HOTEL Ala COOJU OKINAWA</h3>
+                            <div class="text-sm text-gray-600 mt-2 flex items-center gap-2">
+                                <i class="fa-solid fa-phone text-accent w-4 text-center"></i> 
+                                <span>+81-98-943-5300</span>
+                            </div>
+                            <div class="text-sm text-gray-600 mt-2 flex items-start gap-2">
+                                <i class="fa-solid fa-bell-concierge mt-1 text-accent w-4 text-center"></i> 
+                                <span>停車場、室外游泳池、餐廳、客房Wi-Fi、早餐評價非常好</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-xl flex justify-between text-sm mt-4 border border-gray-100">
+                        <div class="text-center flex-1 border-r border-gray-200">
+                            <div class="text-gray-500">Check-in</div>
+                            <div class="font-bold">5/18 15:00</div>
+                        </div>
+                        <div class="text-center flex-1">
+                            <div class="text-gray-500">Check-out</div>
+                            <div class="font-bold">5/20 11:00</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ====== 記帳 (Expense) ====== -->
+            <div v-else-if="currentTab === 'expense'" class="pb-20 animate-fade-in">
+                <h1 class="text-3xl font-serif font-bold text-gray-900 mb-6 border-b-2 border-primary pb-2 inline-block">記帳助手</h1>
+                
+                <!-- 總預算卡片 (含匯率) -->
+                <div class="bg-primary text-white rounded-2xl p-6 mb-6 shadow-soft-dark relative overflow-hidden">
+                    <div class="relative z-10 flex flex-col gap-3">
+                        <div>
+                            <div class="text-sm opacity-80 mb-1">預估總花費 (含匯率換算)</div>
+                            <div class="text-3xl font-bold font-serif text-accent">NT$ {{ Math.round(grandTotal.combinedTwd).toLocaleString() }}</div>
+                        </div>
+                        <div class="flex justify-between items-end border-t border-white/20 pt-3">
+                            <div>
+                                <span class="text-xs opacity-70 block mb-1">台幣記帳</span>
+                                <span class="text-lg font-bold text-white">NT$ {{ grandTotal.twd.toLocaleString() }}</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs opacity-70 block mb-1">日幣記帳 (¥1 = NT$0.2)</span>
+                                <span class="text-lg font-bold text-white">¥ {{ grandTotal.jpy.toLocaleString() }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-wallet absolute -right-4 -bottom-4 text-7xl opacity-10"></i>
+                </div>
+
+                <!-- 新增支出表單 -->
+                <div class="bg-white p-5 rounded-2xl shadow-soft border-2 border-gray-100 mb-8">
+                    <h3 class="font-bold text-gray-800 mb-3"><i class="fa-solid fa-pen-to-square text-accent"></i> 新增花費</h3>
+                    <div class="space-y-3">
+                        <div class="flex gap-2">
+                            <div class="w-1/3">
+                                <label class="text-xs text-gray-500 mb-1 block">天數</label>
+                                <select v-model="newExpense.day" class="w-full p-2 border rounded-lg bg-gray-50 outline-none text-sm">
+                                    <option v-for="d in 5" :value="d">Day {{ d }}</option>
+                                </select>
+                            </div>
+                            <div class="w-2/3">
+                                <label class="text-xs text-gray-500 mb-1 block">項目名稱</label>
+                                <input type="text" v-model="newExpense.title" placeholder="如：晚餐、過路費" class="w-full p-2 border rounded-lg bg-gray-50 outline-none text-sm">
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="w-1/3">
+                                <label class="text-xs text-gray-500 mb-1 block">幣別</label>
+                                <select v-model="newExpense.currency" class="w-full p-2 border rounded-lg bg-gray-50 outline-none text-sm">
+                                    <option value="JPY">日幣 (¥)</option>
+                                    <option value="TWD">台幣 (NT$)</option>
+                                </select>
+                            </div>
+                            <div class="w-2/3">
+                                <label class="text-xs text-gray-500 mb-1 block">金額</label>
+                                <input type="number" v-model="newExpense.amount" placeholder="0" class="w-full p-2 border rounded-lg bg-gray-50 outline-none text-base font-bold">
+                            </div>
+                        </div>
+                        <button @click="addExpense" class="w-full mt-2 btn-active bg-accent text-white font-bold py-2 rounded-lg shadow-sm">
+                            <i class="fa-solid fa-plus"></i> 儲存紀錄
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 支出明細清單 (分天) -->
+                <div class="space-y-6">
+                    <div v-for="dayNum in 5" :key="dayNum" v-show="groupedExpenses[dayNum].length > 0">
+                        <div class="flex justify-between items-end border-b-2 border-gray-200 pb-2 mb-3">
+                            <h3 class="font-bold text-lg font-serif text-primary">Day {{ dayNum }}</h3>
+                            <div class="text-xs text-gray-500 text-right font-bold">
+                                <span v-if="dayTotals[dayNum].jpy > 0">¥ {{ dayTotals[dayNum].jpy.toLocaleString() }} </span>
+                                <span v-if="dayTotals[dayNum].twd > 0" :class="{'ml-2': dayTotals[dayNum].jpy > 0}">NT$ {{ dayTotals[dayNum].twd.toLocaleString() }}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <div v-for="exp in groupedExpenses[dayNum]" :key="exp.id" class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
+                                <div class="font-bold text-gray-800">{{ exp.title }}</div>
+                                <div class="text-right">
+                                    <div class="font-bold text-lg flex items-center justify-end gap-1" :class="exp.currency === 'JPY' ? 'text-blue-700' : 'text-green-700'">
+                                        <span class="text-xs">{{ exp.currency === 'JPY' ? '¥' : 'NT$' }}</span>
+                                        {{ exp.amount.toLocaleString() }}
+                                    </div>
+                                    <button @click="removeExpense(exp.id)" class="text-red-400 hover:text-red-600 text-[10px] mt-1 flex items-center justify-end w-full gap-1 transition-colors">
+                                        <i class="fa-solid fa-trash-can"></i> 刪除
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 空狀態提示 -->
+                    <div v-if="expenses.length === 0" class="text-center py-10 opacity-50">
+                        <i class="fa-solid fa-receipt text-4xl text-gray-400 mb-3 block"></i>
+                        <span class="text-gray-500 text-sm">目前尚無開支紀錄</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ====== 攜帶物品 (Checklist) ====== -->
+            <div v-else-if="currentTab === 'checklist'" class="pb-20 animate-fade-in">
+                <h1 class="text-3xl font-serif font-bold text-gray-900 mb-6 border-b-2 border-primary pb-2 inline-block">攜帶物品清單</h1>
+                <p class="text-gray-500 text-sm mb-6">出發前請核對以下物品是否已準備妥當，私人物品再請自行確認準備。</p>
+                
+                <div class="space-y-4">
+                    <div v-for="(category, idx) in checklist" :key="idx" class="bg-white rounded-2xl border-2 border-gray-100 shadow-sm overflow-hidden">
+                        <div class="bg-secondary/40 px-4 py-3 font-bold text-primary flex justify-between items-center border-b border-gray-100">
+                            <span><i :class="category.icon" class="w-6 text-center text-accent"></i> {{ category.name }}</span>
+                            <span class="text-xs bg-white px-2 py-1 rounded-full text-gray-500">{{ category.items.filter(i => i.checked).length }} / {{ category.items.length }}</span>
+                        </div>
+                        <div class="p-2 space-y-1">
+                            <label v-for="(item, i) in category.items" :key="i" class="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-50" :class="{'opacity-60': item.checked}">
+                                <input type="checkbox" v-model="item.checked" class="w-5 h-5 text-accent bg-gray-100 border-gray-300 rounded focus:ring-accent accent-accent transition-all">
+                                <span class="text-sm transition-all" :class="{'line-through text-gray-400': item.checked, 'text-gray-800 font-medium': !item.checked}">
+                                    {{ item.name }}
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- 回到頂部浮動按鈕 -->
+        <button 
+            @click="scrollToTop"
+            :class="['fixed bottom-8 right-6 md:right-10 w-12 h-12 bg-primary text-accent rounded-full shadow-soft-dark border border-accent/30 flex items-center justify-center z-50 hover:scale-105 active:scale-95 transition-all duration-300', showBackToTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none']"
+        >
+            <i class="fa-solid fa-arrow-up"></i>
+        </button>
+
+    </div>
+
+    <!-- Vue 與 Firebase 邏輯 -->
+    <script type="module">
+        import { createApp, ref, computed, watch, onMounted } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js';
+        
+        const app = createApp({
+            setup() {
+                // 狀態與 DOM 參考管理
+                const currentTab = ref('schedule');
+                const activeDay = ref(1);
+                const mainContent = ref(null);
+                const showBackToTop = ref(false);
+
+                // 監聽滾動事件顯示/隱藏回到頂部按鈕
+                const handleScroll = (e) => {
+                    showBackToTop.value = e.target.scrollTop > 300;
+                };
+
+                // 回到頂部函數
+                const scrollToTop = () => {
+                    if (mainContent.value) {
+                        mainContent.value.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                };
+
+                // 監聽 Tab 或 Day 切換，自動回到頁面頂部
+                watch([currentTab, activeDay], () => {
+                    if (mainContent.value) {
+                        mainContent.value.scrollTo({ top: 0, behavior: 'auto' });
+                    }
+                });
+                
+                // 計算倒數天數
+                const departureDate = new Date('2026-05-16').getTime();
+                const today = new Date().getTime();
+                const daysLeft = ref(Math.max(0, Math.ceil((departureDate - today) / (1000 * 60 * 60 * 24))));
+
+                // 沖繩未來5日天氣
+                const weatherForecast = ref([
+                    { day: 1, temp: 25, icon: 'fa-solid fa-sun' },
+                    { day: 2, temp: 24, icon: 'fa-solid fa-cloud-sun' },
+                    { day: 3, temp: 25, icon: 'fa-solid fa-cloud-sun' },
+                    { day: 4, temp: 26, icon: 'fa-solid fa-cloud-sun' },
+                    { day: 5, temp: 28, icon: 'fa-solid fa-cloud-sun' }
+                ]);
+
+                // 沖繩行程資料
+                const itinerary = ref([
+                    {
+                        id: 1,
+                        date: '5/16 (六)',
+                        dateShort: '5/16',
+                        title: '啟程・抵達沖繩',
+                        desc: '抵達沖繩那霸，取車後開啟為期五天的旅遊！傍晚前往充滿美式風情的美國村。',
+                        tags: ['必逛: 西松屋', '煙火: 美國村'],
+                        location: '沖繩 那霸 / 恩納',
+                        todo: '',
+                        tip: '入境 6 小時前務必填好 Visit Japan Web 並截圖保存。取車時請準備好台灣駕照與日文譯本！晚間 8 點美國村有煙火！',
+                        events: [
+                            { time: '09:30', title: '桃園機場第一航廈集合', note: '星宇航空櫃台 (通常是第6櫃台)', type: 'transport', typeText: '交通' },
+                            { time: '12:00', title: 'TPE 起飛 (星宇 JX870)', type: 'transport', typeText: '交通', voucher: true },
+                            { time: '14:40', title: '抵達沖繩那霸機場 (OKA)', type: 'transport', typeText: '交通', map: 'https://maps.app.goo.gl/4sBB32JmtUornLcTA' },
+                            { time: '15:30', title: '領取租車 (Good speed)', note: '準備好日文譯本，撥打 0120-40-4092', type: 'transport', typeText: '交通', map: 'https://maps.app.goo.gl/8QPyz6qCUZSQJeBN9' },
+                            { time: '17:00', title: '西松屋 那覇新都心店', note: '補貨嬰兒用品，若不需補貨可直奔美國村', type: 'spot', typeText: '購物', map: 'https://maps.app.goo.gl/8GZWAcfbBy7WMoRh9' },
+                            { time: '19:00', title: '美國村 & 晚餐', note: '北谷日落步道 20:00 有煙火！晚餐：A&W 牧港店', type: 'food', typeText: '美食/景點', map: 'https://maps.app.goo.gl/caMHUpSNVdHpu4TTA' },
+                            { time: '20:00', title: '抵達民宿 Check-in', note: '格蘭迪奧所沖繩別墅恩納2', type: 'hotel', typeText: '住宿', map: 'https://maps.app.goo.gl/ijExQ6PpCj7bn56j9' },
+                        ]
+                    },
+                    {
+                        id: 2,
+                        date: '5/17 (日)',
+                        dateShort: '5/17',
+                        title: '湛藍海洋・古宇利島',
+                        desc: '探訪沖繩最知名的美麗海水族館，並自駕跨海大橋前往戀之島。',
+                        tags: ['必看: 鯨鯊', '必吃: 蝦蝦飯'],
+                        location: '沖繩 本部 / 名護',
+                        todo: '',
+                        tip: '水族館二樓「黑潮之海」鬼蝠魟餵食秀在 9:30，海豚秀在 10:30，請注意時間喔！',
+                        events: [
+                            { time: '07:30', title: '民宿出發', type: 'transport', typeText: '交通' },
+                            { time: '08:30', title: '沖繩美麗海水族館', note: '記得在 Klook 買好票', type: 'spot', typeText: '景點', voucher: true, map: 'https://maps.app.goo.gl/V7QdvUKSHsL1jcnbA' },
+                            { time: '12:30', title: '古宇利島 (自由時間)', note: '蝦蝦飯、透明御守扭蛋、心型岩、海洋塔', type: 'spot', typeText: '景點', map: 'https://maps.app.goo.gl/MaqVpfN3MUg72sV59' },
+                            { time: '14:30', title: 'AEON 永旺 名護店', note: '自由逛街購物', type: 'spot', typeText: '購物', map: 'https://maps.app.goo.gl/QBhGqCLRZjkrXHxKA' },
+                            { time: '18:00', title: '晚餐：燒肉本舖 名護店', note: '已預訂！大口吃和牛！', type: 'food', typeText: '美食', map: 'https://maps.app.goo.gl/t9FzqfuvN6YJWdFt6', website: true, websiteUrl: 'https://motobu-farm.com/zh-hant/pages/store-nago?utm_source=google&utm_medium=Google%E3%83%93%E3%82%B8%E3%83%8D%E3%82%B9%E3%83%97%E3%83%AD%E3%83%95%E3%82%A3%E3%83%BC%E3%83%AB&utm_campaign=Google%E3%83%93%E3%82%B8%E3%83%8D%E3%82%B9%E3%83%97%E3%83%AD%E3%83%95%E3%82%A3%E3%83%BC%E3%83%AB-nago' },
+                            { time: '20:00', title: '回民宿休息', type: 'hotel', typeText: '住宿' },
+                        ]
+                    },
+                    {
+                        id: 3,
+                        date: '5/18 (一)',
+                        dateShort: '5/18',
+                        title: '那霸市區・文化巡禮',
+                        desc: '悠哉退房後往南移動，逛傳統市場與知名國際通。',
+                        tags: ['必買: 伴手禮', '必訪: 波上宮'],
+                        location: '沖繩 那霸',
+                        todo: '',
+                        tip: '那霸市區停車位較少，建議確認飯店與市場周邊的停車場位置喔！',
+                        events: [
+                            { time: '10:00', title: '民宿退房', note: '最晚退房時間10:00', type: 'hotel', typeText: '住宿' },
+                            { time: '10:30', title: '道之驛 嘉手納', note: '看戰鬥機起降', type: 'spot', typeText: '景點', map: 'https://maps.app.goo.gl/uEkgZfqJWzAR6t9y5' },
+                            { time: '12:00', title: '午餐：第一牧志公設市場', note: '品嚐新鮮海產與在地美食', type: 'food', typeText: '美食', map: 'https://maps.app.goo.gl/vyvHtgBhfYNRaSqU8' },
+                            { time: '15:00', title: 'Hotel Ala COOJU Check-in',note: '最早入住時間15:00', type: 'hotel', typeText: '住宿', map: 'https://maps.app.goo.gl/vxkj97QNfUWc3QAD8' },
+                            { time: '16:00', title: '市區自由活動', note: '國際通、波上宮、DMM 水族館、SPORTS DEPO 豐崎店、泊港漁市場', type: 'spot', typeText: '景點' },
+                        ]
+                    },
+                    {
+                        id: 4,
+                        date: '5/19 (二)',
+                        dateShort: '5/19',
+                        title: '海濱放鬆・血拼時光',
+                        desc: '享受飯店早餐，海邊玩沙，下午前往大型商場購物。',
+                        tags: ['放鬆: 海濱公園', '血拼: Parco City'],
+                        location: '沖繩 宜野灣',
+                        todo: '',
+                        tip: '宜野灣海濱沙灘非常棒，記得為小朋友帶上挖沙工具，並做好全身防曬！',
+                        events: [
+                            { time: '09:00', title: '飯店早餐時光', type: 'food', typeText: '美食' },
+                            { time: '10:30', title: '宜野灣海濱海邊玩沙', note: '帶拋帳與防曬用品', type: 'spot', typeText: '景點', map: 'https://maps.app.goo.gl/mUCBaNkKdJZhFzXE8' },
+                            { time: '12:30', title: 'Parco City (自由時間)', note: '午餐、逛街逛起來', type: 'spot', typeText: '購物', map: 'https://maps.app.goo.gl/M9C62cwedAqTGwCq8' },
+                            { time: '18:00', title: '回飯店休息/自理晚餐', type: 'hotel', typeText: '住宿' },
+                        ]
+                    },
+                    {
+                        id: 5,
+                        date: '5/20 (三)',
+                        dateShort: '5/20',
+                        title: '賦歸・瀨長島',
+                        desc: '旅程尾聲，前往小希臘瀨長島享受最後的悠閒。',
+                        tags: ['必去: 瀨長島'],
+                        location: '沖繩 豐見城',
+                        todo: '',
+                        tip: '機場2F與4F都有美食區，早點到機場可以做最後的採買與休息！',
+                        events: [
+                            { time: '11:00', title: '悠哉起床退房', type: 'hotel', typeText: '住宿' },
+                            { time: '11:30', title: '瀨長島 / Outlet', note: '白色地中海風情、咖啡店', type: 'spot', typeText: '景點', map: 'https://maps.app.goo.gl/41QCah76VkJjvamw5' },
+                            { time: '13:30', title: '沖繩那霸機場報到', note: '美食街在 2F & 4F', type: 'transport', typeText: '交通', map: 'https://maps.app.goo.gl/4sBB32JmtUornLcTA' },
+                            { time: '15:50', title: 'OKA 起飛 (星宇 JX871)', type: 'transport', typeText: '交通' },
+                            { time: '16:25', title: '抵達台灣 (TPE)', note: '溫暖的家', type: 'transport', typeText: '交通' },
+                        ]
+                    }
+                ]);
+
+                // 顏色對應邏輯
+                const getEventColor = (type) => {
+                    const colors = { transport: 'bg-blue-400', spot: 'bg-green-500', food: 'bg-orange-400', hotel: 'bg-purple-400' };
+                    return colors[type] || 'bg-gray-400';
+                };
+
+                const getEventBadge = (type) => {
+                    const colors = { transport: 'bg-blue-100 text-blue-700', spot: 'bg-green-100 text-green-700', food: 'bg-orange-100 text-orange-700', hotel: 'bg-purple-100 text-purple-700' };
+                    return colors[type] || 'bg-gray-100 text-gray-700';
+                };
+
+                // ===== 記帳邏輯 =====
+                const EXCHANGE_RATE = 0.20; // 匯率：日幣1元 = 台幣0.20元
+
+                const expenses = ref([]);
+                const newExpense = ref({ day: 1, title: '', amount: null, currency: 'JPY' });
+
+                const addExpense = () => {
+                    if(!newExpense.value.title || !newExpense.value.amount) return;
+                    expenses.value.push({
+                        id: Date.now(),
+                        day: parseInt(newExpense.value.day),
+                        title: newExpense.value.title,
+                        amount: parseFloat(newExpense.value.amount),
+                        currency: newExpense.value.currency
+                    });
+                    newExpense.value.title = '';
+                    newExpense.value.amount = null;
+                };
+
+                const removeExpense = (id) => {
+                    expenses.value = expenses.value.filter(exp => exp.id !== id);
+                };
+
+                const groupedExpenses = computed(() => {
+                    const groups = { 1: [], 2: [], 3: [], 4: [], 5: [] };
+                    expenses.value.forEach(exp => groups[exp.day].push(exp));
+                    return groups;
+                });
+
+                const dayTotals = computed(() => {
+                    const totals = {};
+                    for (let i = 1; i <= 5; i++) {
+                        let jpy = 0, twd = 0;
+                        groupedExpenses.value[i].forEach(e => {
+                            if (e.currency === 'JPY') jpy += e.amount;
+                            if (e.currency === 'TWD') twd += e.amount;
+                        });
+                        totals[i] = { jpy, twd };
+                    }
+                    return totals;
+                });
+
+                const grandTotal = computed(() => {
+                    let jpy = 0, twd = 0;
+                    expenses.value.forEach(e => {
+                        if (e.currency === 'JPY') jpy += e.amount;
+                        if (e.currency === 'TWD') twd += e.amount;
+                    });
+                    const combinedTwd = twd + (jpy * EXCHANGE_RATE);
+                    return { jpy, twd, combinedTwd };
+                });
+
+                // ===== 攜帶物品清單邏輯 =====
+                const checklist = ref([
+                    { name: '重要文件', items: [
+                        { name: '一顆快樂的心', checked: false },{ name: '身分證', checked: false }, { name: '護照', checked: false }, { name: '駕照 - 譯本', checked: false },
+                        { name: '機票', checked: false }, { name: 'VJW (截圖)', checked: false }, { name: '外幣', checked: false },
+                        { name: '信用卡', checked: false }, { name: '兒童健康手冊', checked: false }
+                    ]},
+                    { name: '盥洗用品', items: [
+                        { name: '洗髮精', checked: false }, { name: '沐浴乳', checked: false }, { name: '牙膏 / 牙刷 / 牙線', checked: false },
+                        { name: '毛巾', checked: false },{ name: '保養品', checked: false }
+                    ]},
+                    { name: '個人用品', items: [
+                        { name: '換洗衣物', checked: false }, { name: '防曬外套', checked: false },{ name: '防曬乳', checked: false }, { name: '鞋子 / 帽子', checked: false },
+                        { name: '太陽眼鏡', checked: false }, { name: '眼罩 / 頸枕', checked: false }, { name: '耳塞 / 嬰兒耳罩', checked: false },{ name: '口罩', checked: false },
+                        { name: '雨傘', checked: false }, { name: '泳衣 / 泳褲', checked: false }, { name: '防水尿布', checked: false }, { name: '泳圈', checked: false },
+                        { name: '防蚊液', checked: false }, { name: '衣架', checked: false }
+                    ]},
+                    { name: '嬰幼兒用品', items: [
+                        { name: '尿布', checked: false }, { name: '尿布墊', checked: false }, { name: '寶寶沐浴乳', checked: false },{ name: '乳液', checked: false },
+                        { name: '屁屁膏', checked: false }, { name: '推車', checked: false },{ name: '背巾', checked: false }, { name: '安撫玩具 / 被被', checked: false },
+                        { name: '濕紙巾 / 面紙', checked: false }, { name: '泰山純水', checked: false }
+                    ]},
+                    { name: '幼兒食品', items: [
+                        { name: '袋裝奶粉（30袋）', checked: false }, { name: '拋棄式奶瓶組+奶嘴', checked: false }, { name: '奶嘴刷+清潔劑', checked: false }, { name: '副食品 / 米餅', checked: false },
+                        { name: '保溫瓶', checked: false }, { name: '電熱水瓶', checked: false }, { name: '餐具 / 食物剪', checked: false }, { name: '圍兜兜', checked: false }
+                    ]},
+                    { name: '3C產品與藥品', items: [
+                        { name: '手機 / 相機', checked: false }, { name: '充電線器 / 行動電源', checked: false }, { name: 'eSIM', checked: false },
+                        { name: '暈車藥 / 感冒藥', checked: false }, { name: '腸胃藥 / 過敏藥', checked: false }, { name: '嬰幼兒常備藥', checked: false }
+                    ]}
+                ]);
+
+                return {
+                    currentTab, activeDay, itinerary, daysLeft, getEventColor, getEventBadge,
+                    weatherForecast,
+                    expenses, newExpense, addExpense, removeExpense, groupedExpenses, dayTotals, grandTotal,
+                    checklist,
+                    mainContent, showBackToTop, handleScroll, scrollToTop
+                }
+            }
+        });
+
+        app.mount('#app');
+    </script>
+</body>
+</html>

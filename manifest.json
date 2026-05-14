@@ -1,0 +1,15 @@
+{
+  "short_name": "沖繩5日",
+  "name": "生日禮物要買什麼 - 沖繩5日",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#F7F8F6",
+  "theme_color": "#2C3E35"
+}
